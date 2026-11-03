@@ -1,0 +1,807 @@
+<!doctype html><html><head><meta charset=utf8><meta name=viewport content="width=device-width,initial-scale=1,viewport-fit=cover"><style>:root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#fff;color:#000}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style></head><body>
+<title>Juzgado Cívico BST</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@500;700;800&family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
+<style>
+/* Layout: encabezado institucional arriba; a la izquierda acciones y formulario, a la derecha el árbol dibujado, el seguimiento del infractor y el listado in-order. En móvil todo se apila en el orden de uso. */
+:root {
+  --font-display: "Archivo", system-ui, sans-serif;
+  --font-body: "IBM Plex Sans", system-ui, sans-serif;
+  --font-mono: "IBM Plex Mono", ui-monospace, monospace;
+
+  --bg: #eceff3;
+  --surface: #fafbfc;
+  --surface-2: #f0f3f6;
+  --ink: #16212c;
+  --muted: #566677;
+  --line: #d2d9e0;
+
+  --head: #12283d;
+  --head-ink: #eef3f7;
+  --head-muted: #9fb3c4;
+
+  --c-reg: #0d7a6a;
+  --c-bus: #1d5fc0;
+  --c-san: #a35d00;
+  --c-ord: #6a49c2;
+  --c-lib: #b3261e;
+  --on-act: #ffffff;
+
+  --node: #fafbfc;
+  --node-line: #8fa0b0;
+  --edge: #a3b1be;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #0d1319; --surface: #151d26; --surface-2: #1b2530; --ink: #e4ebf1; --muted: #8fa1b1; --line: #2a3643;
+    --head: #0a1117; --head-ink: #eef3f7; --head-muted: #8196a8;
+    --c-reg: #35c2ae; --c-bus: #6aa3ff; --c-san: #f0a63a; --c-ord: #a58cf5; --c-lib: #ff7a70; --on-act: #0a1116;
+    --node: #1b2530; --node-line: #4d5f70; --edge: #455566;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #0d1319; --surface: #151d26; --surface-2: #1b2530; --ink: #e4ebf1; --muted: #8fa1b1; --line: #2a3643;
+  --head: #0a1117; --head-ink: #eef3f7; --head-muted: #8196a8;
+  --c-reg: #35c2ae; --c-bus: #6aa3ff; --c-san: #f0a63a; --c-ord: #a58cf5; --c-lib: #ff7a70; --on-act: #0a1116;
+  --node: #1b2530; --node-line: #4d5f70; --edge: #455566;
+  color-scheme: dark;
+}
+
+* { box-sizing: border-box; }
+body {
+  background: var(--bg);
+  color: var(--ink);
+  font-family: var(--font-body);
+  font-size: 15px;
+  line-height: 1.45;
+}
+h1, h2, h3, p { margin: 0; }
+button, input, select { font: inherit; color: inherit; }
+:focus-visible { outline: 3px solid var(--c-bus); outline-offset: 2px; }
+
+.wrap {
+  width: 100%;
+  max-width: 1280px;
+  margin-inline: auto;
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+}
+
+/* Encabezado */
+.head { background: var(--head); color: var(--head-ink); }
+.head .wrap { display: flex; flex-wrap: wrap; align-items: flex-end; justify-content: space-between; gap: 16px; padding-block: 22px 20px; }
+.eyebrow { font-size: 12px; letter-spacing: 0.14em; text-transform: uppercase; color: var(--head-muted); font-weight: 600; }
+.head h1 { font-family: var(--font-display); font-weight: 800; font-size: clamp(28px, 5vw, 40px); letter-spacing: -0.02em; line-height: 1.05; margin-top: 4px; }
+.head .sub { color: var(--head-muted); margin-top: 6px; max-width: 52ch; }
+.stats { display: flex; gap: 10px; flex-wrap: wrap; }
+.stat { border: 1px solid rgba(255,255,255,0.18); border-radius: 8px; padding: 8px 14px; min-width: 92px; }
+.stat b { display: block; font-family: var(--font-mono); font-weight: 500; font-size: 20px; font-variant-numeric: tabular-nums; }
+.stat span { font-size: 11px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--head-muted); }
+
+/* Rejilla principal */
+main.wrap { padding-block: 16px 40px; }
+.app { display: grid; grid-template-columns: minmax(0, 380px) minmax(0, 1fr); gap: 16px; align-items: start; }
+.col { display: flex; flex-direction: column; gap: 16px; min-width: 0; }
+@media (max-width: 880px) {
+  .app { grid-template-columns: minmax(0, 1fr); }
+  .col { display: contents; }
+  #cAct { order: 1; } #cForm { order: 2; } #cTree { order: 3; } #cDet { order: 4; } #cTab { order: 5; } #cLog { order: 6; }
+}
+
+.card { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 16px; min-width: 0; }
+.card > h2, .card-head h2 { font-family: var(--font-display); font-weight: 700; font-size: 16px; letter-spacing: 0.01em; }
+.card-head { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px 12px; margin-bottom: 12px; }
+.tag-ex { font-size: 12px; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; color: var(--c-san); border: 1px solid currentColor; border-radius: 4px; padding: 2px 8px; }
+.legend { display: flex; flex-wrap: wrap; gap: 6px 14px; font-size: 12px; color: var(--muted); }
+.legend i { display: inline-block; width: 10px; height: 10px; border-radius: 3px; margin-right: 6px; vertical-align: -1px; border: 2px solid; }
+
+/* Botones de acción (menú de la consola) */
+.acts { display: grid; gap: 8px; margin-top: 12px; }
+.act {
+  --c: var(--c-reg);
+  display: flex; align-items: center; gap: 12px;
+  width: 100%; min-height: 52px; padding: 8px 14px;
+  background: var(--c); color: var(--on-act);
+  border: 0; border-radius: 8px; cursor: pointer; text-align: left;
+  box-shadow: inset 0 -3px 0 rgba(0,0,0,0.18);
+  transition: transform 0.12s ease, filter 0.12s ease;
+}
+.act:hover { filter: brightness(1.07); }
+.act:active { transform: translateY(1px); }
+.act[aria-pressed="true"] { outline: 3px solid var(--ink); outline-offset: 2px; }
+.act .n { font-family: var(--font-mono); font-weight: 500; font-size: 15px; width: 28px; height: 28px; display: grid; place-items: center; border-radius: 6px; background: rgba(0,0,0,0.2); flex: none; }
+.act .t { display: flex; flex-direction: column; min-width: 0; line-height: 1.2; }
+.act .t b { font-weight: 600; font-size: 15px; }
+.act .t small { font-size: 12px; opacity: 0.88; }
+.act[data-mode="registrar"] { --c: var(--c-reg); }
+.act[data-mode="buscar"] { --c: var(--c-bus); }
+.act[data-mode="sancion"] { --c: var(--c-san); }
+.act[data-mode="orden"] { --c: var(--c-ord); }
+.act[data-mode="liberar"] { --c: var(--c-lib); }
+.act-row { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 12px; }
+.ghost { flex: 1 1 140px; min-height: 40px; background: transparent; border: 1px solid var(--line); border-radius: 8px; cursor: pointer; font-weight: 500; color: var(--ink); }
+.ghost:hover { background: var(--surface-2); }
+
+/* Formulario */
+#frm { --mode: var(--c-reg); border-top: 4px solid var(--mode); }
+#frm h2 { color: var(--ink); }
+.hint { color: var(--muted); font-size: 13px; margin: 4px 0 12px; }
+.field { display: flex; flex-direction: column; gap: 4px; margin-bottom: 10px; }
+.field label { font-size: 12px; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted); }
+.field input { width: 100%; min-height: 44px; padding: 8px 12px; font-size: 16px; background: var(--surface-2); border: 1px solid var(--line); border-radius: 6px; }
+.field input.mono { font-family: var(--font-mono); }
+.field input:focus { border-color: var(--mode); }
+.field.bad input { border-color: var(--c-lib); }
+.submit { width: 100%; min-height: 48px; margin-top: 4px; border: 0; border-radius: 8px; background: var(--mode); color: var(--on-act); font-weight: 600; font-size: 15px; cursor: pointer; box-shadow: inset 0 -3px 0 rgba(0,0,0,0.18); }
+.submit:hover { filter: brightness(1.07); }
+.submit.confirm { animation: pulse 1s ease-in-out infinite; }
+@keyframes pulse { 50% { filter: brightness(1.18); } }
+
+/* Árbol */
+.treebox { overflow-x: auto; padding-bottom: 4px; }
+.treebox svg { display: block; margin-inline: auto; max-width: none; }
+.edge { fill: none; stroke: var(--edge); stroke-width: 2; }
+.edge.on { stroke: var(--c-bus); stroke-width: 3; }
+.node { cursor: pointer; }
+.node rect { fill: var(--node); stroke: var(--node-line); stroke-width: 1.5; transition: fill 0.2s ease, stroke 0.2s ease; }
+.node:hover rect { stroke: var(--ink); }
+.node .nf { font-family: var(--font-mono); font-weight: 500; font-size: 14px; fill: var(--ink); }
+.node .nn { font-size: 11px; fill: var(--muted); }
+.node.visit rect { fill: color-mix(in srgb, var(--c-bus) 20%, var(--node)); stroke: var(--c-bus); stroke-width: 2.5; }
+.node.found rect, .node.newn rect { fill: color-mix(in srgb, var(--c-reg) 28%, var(--node)); stroke: var(--c-reg); stroke-width: 3; }
+.node.miss rect { fill: color-mix(in srgb, var(--c-lib) 22%, var(--node)); stroke: var(--c-lib); stroke-width: 3; }
+.node.ord rect { fill: color-mix(in srgb, var(--c-ord) 22%, var(--node)); stroke: var(--c-ord); stroke-width: 2.5; }
+.node.sel rect { stroke: var(--ink); stroke-width: 3.5; }
+.badge-san circle { fill: var(--c-san); }
+.badge-san text { fill: var(--on-act); font-family: var(--font-mono); font-size: 11px; font-weight: 500; }
+.badge-ord circle { fill: var(--c-ord); }
+.badge-ord text { fill: var(--on-act); font-family: var(--font-mono); font-size: 11px; font-weight: 500; }
+.empty { padding: 36px 12px; text-align: center; color: var(--muted); }
+.empty b { display: block; color: var(--ink); font-family: var(--font-display); font-size: 17px; margin-bottom: 4px; }
+
+/* Detalle */
+.sello { display: inline-block; font-family: var(--font-mono); font-weight: 500; font-size: 18px; border: 2px solid var(--c-bus); color: var(--c-bus); border-radius: 6px; padding: 2px 10px; }
+.det-top { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 12px; }
+.det-btns { display: flex; gap: 8px; flex-wrap: wrap; }
+.mini { min-height: 36px; padding: 4px 12px; border: 0; border-radius: 6px; font-weight: 600; font-size: 13px; cursor: pointer; background: var(--c); color: var(--on-act); }
+.mini.san { --c: var(--c-san); } .mini.lib { --c: var(--c-lib); }
+dl.info { display: grid; grid-template-columns: max-content minmax(0, 1fr); gap: 4px 14px; margin: 0 0 14px; }
+dl.info dt { color: var(--muted); font-size: 12px; letter-spacing: 0.06em; text-transform: uppercase; padding-top: 2px; }
+dl.info dd { margin: 0; overflow-wrap: anywhere; }
+.sub-h { font-size: 12px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); font-weight: 600; margin-bottom: 8px; }
+.chain { display: flex; flex-wrap: wrap; gap: 8px; align-items: stretch; }
+.link { border: 1px solid var(--line); background: var(--surface-2); border-radius: 8px; padding: 8px 12px; min-width: 0; max-width: 100%; border-left: 4px solid var(--c-san); }
+.link time { font-family: var(--font-mono); font-size: 12px; color: var(--c-san); display: block; }
+.link span { overflow-wrap: anywhere; }
+.arrow, .null { align-self: center; font-family: var(--font-mono); color: var(--muted); }
+.null { border: 1px dashed var(--line); border-radius: 6px; padding: 4px 8px; font-size: 12px; }
+
+/* Tabla */
+.tablewrap { overflow-x: auto; }
+table { width: 100%; border-collapse: collapse; min-width: 560px; }
+th { text-align: left; font-size: 12px; letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted); padding: 6px 10px; border-bottom: 2px solid var(--line); }
+td { padding: 9px 10px; border-bottom: 1px solid var(--line); vertical-align: top; }
+td.mono { font-family: var(--font-mono); font-variant-numeric: tabular-nums; white-space: nowrap; }
+tr.row { cursor: pointer; }
+tr.row:hover td { background: var(--surface-2); }
+tr.row.ord td { background: color-mix(in srgb, var(--c-ord) 16%, var(--surface)); }
+.pill { display: inline-block; min-width: 24px; text-align: center; border-radius: 12px; padding: 0 8px; font-family: var(--font-mono); font-size: 12px; background: var(--surface-2); border: 1px solid var(--line); }
+
+/* Bitácora */
+.log { list-style: none; margin: 0; padding: 0; max-height: 280px; overflow-y: auto; display: flex; flex-direction: column; }
+.log li { display: grid; grid-template-columns: 40px minmax(0, 1fr) auto; gap: 10px; padding: 8px 0; border-bottom: 1px solid var(--line); align-items: start; }
+.log time { font-family: var(--font-mono); font-size: 12px; color: var(--muted); }
+.log .msg { overflow-wrap: anywhere; }
+.tag { font-family: var(--font-mono); font-size: 12px; font-weight: 500; text-align: center; border-radius: 4px; padding: 1px 0; color: var(--on-act); }
+.tag.ok { background: var(--c-reg); } .tag.err { background: var(--c-lib); } .tag.add { background: var(--c-san); } .tag.info { background: var(--c-bus); } .tag.ord { background: var(--c-ord); }
+
+@media (prefers-reduced-motion: reduce) {
+  * { animation: none !important; transition: none !important; }
+}
+</style>
+
+<header class="head">
+  <div class="wrap">
+    <div>
+      <p class="eyebrow">Faltas administrativas · Estructuras de datos</p>
+      <h1>Juzgado Cívico</h1>
+      <p class="sub">Registro de infractores en un árbol binario de búsqueda ordenado por folio, con lista enlazada de sanciones por persona.</p>
+    </div>
+    <div class="stats" aria-label="Resumen del árbol">
+      <div class="stat"><b id="stN">0</b><span>Infractores</span></div>
+      <div class="stat"><b id="stH">0</b><span>Altura</span></div>
+      <div class="stat"><b id="stR">—</b><span>Raíz</span></div>
+    </div>
+  </div>
+</header>
+
+<main class="wrap">
+  <div class="app">
+    <div class="col">
+      <section class="card" id="cAct" aria-labelledby="hAct">
+        <h2 id="hAct">Menú del juzgado</h2>
+        <div class="acts">
+          <button type="button" class="act" data-mode="registrar" aria-pressed="true"><span class="n">1</span><span class="t"><b>Registrar infractor</b><small>Insertar nodo en el árbol</small></span></button>
+          <button type="button" class="act" data-mode="buscar" aria-pressed="false"><span class="n">2</span><span class="t"><b>Buscar por folio</b><small>Búsqueda BST con recorrido</small></span></button>
+          <button type="button" class="act" data-mode="sancion" aria-pressed="false"><span class="n">3</span><span class="t"><b>Agregar sanción</b><small>Nuevo eslabón en la lista</small></span></button>
+          <button type="button" class="act" data-mode="orden" aria-pressed="false"><span class="n">4</span><span class="t"><b>Ver todos (in-order)</b><small>Recorrido izquierda, raíz, derecha</small></span></button>
+          <button type="button" class="act" data-mode="liberar" aria-pressed="false"><span class="n">5</span><span class="t"><b>Liberar caso</b><small>Eliminar nodo del árbol</small></span></button>
+        </div>
+        <div class="act-row">
+          <button type="button" class="ghost" id="btnSeed">Cargar ejemplos</button>
+          <button type="button" class="ghost" id="btnClear">Vaciar árbol</button>
+        </div>
+      </section>
+
+      <form class="card" id="frm" novalidate aria-live="polite"></form>
+
+      <section class="card" id="cLog" aria-labelledby="hLog">
+        <div class="card-head"><h2 id="hLog">Bitácora</h2></div>
+        <ul class="log" id="log" aria-live="polite"></ul>
+      </section>
+    </div>
+
+    <div class="col">
+      <section class="card" id="cTree" aria-labelledby="hTree">
+        <div class="card-head">
+          <h2 id="hTree">Árbol de folios</h2>
+          <span class="tag-ex" id="tagEx" hidden>Registros de ejemplo</span>
+        </div>
+        <div class="treebox" id="treeBox"></div>
+        <div class="legend" style="margin-top:10px">
+          <span><i style="border-color:var(--c-bus)"></i>Recorrido</span>
+          <span><i style="border-color:var(--c-reg)"></i>Encontrado / nuevo</span>
+          <span><i style="border-color:var(--c-lib)"></i>No existe</span>
+          <span><i style="border-color:var(--c-ord)"></i>In-order</span>
+          <span><i style="border-color:var(--c-san);border-radius:50%"></i>Sanciones</span>
+        </div>
+      </section>
+
+      <section class="card" id="cDet" aria-labelledby="hDet">
+        <div class="card-head"><h2 id="hDet">Seguimiento del infractor</h2></div>
+        <div id="detBox"></div>
+      </section>
+
+      <section class="card" id="cTab" aria-labelledby="hTab">
+        <div class="card-head"><h2 id="hTab">Listado ordenado por folio</h2></div>
+        <div class="tablewrap" id="tabBox"></div>
+      </section>
+    </div>
+  </div>
+</main>
+
+<script>
+(function () {
+  'use strict';
+
+  /* ===== 1. Lista enlazada de sanciones ===== */
+  class DetalleSancion {
+    constructor(descripcion, hora) {
+      this.descripcion = descripcion;
+      this.hora = hora;
+      this.siguiente = null;
+    }
+  }
+
+  /* ===== 2. Nodo del BST ===== */
+  class InfractorCivico {
+    constructor(folio, nombre, falta, colonia) {
+      this.folio = folio;
+      this.nombreInfractor = nombre;
+      this.faltaCometida = falta;
+      this.coloniaRemision = colonia;
+      this.cabezaSanciones = null;
+      this.izquierdo = null;
+      this.derecho = null;
+    }
+    agregarSancion(desc, hora) {
+      const nueva = new DetalleSancion(desc, hora);
+      if (this.cabezaSanciones === null) {
+        this.cabezaSanciones = nueva;
+      } else {
+        let temp = this.cabezaSanciones;
+        while (temp.siguiente !== null) temp = temp.siguiente;
+        temp.siguiente = nueva;
+      }
+    }
+    sanciones() {
+      const out = [];
+      let t = this.cabezaSanciones;
+      while (t !== null) { out.push(t); t = t.siguiente; }
+      return out;
+    }
+  }
+
+  /* ===== 3. Árbol BST ===== */
+  class JuzgadoCivicoBST {
+    constructor() { this.raiz = null; }
+
+    registrar(folio, nombre, falta, colonia) {
+      const r = { exito: false };
+      this.raiz = this._insertar(this.raiz, folio, nombre, falta, colonia, r);
+      return r.exito;
+    }
+    _insertar(n, folio, nombre, falta, colonia, r) {
+      if (n === null) { r.exito = true; return new InfractorCivico(folio, nombre, falta, colonia); }
+      if (folio < n.folio) n.izquierdo = this._insertar(n.izquierdo, folio, nombre, falta, colonia, r);
+      else if (folio > n.folio) n.derecho = this._insertar(n.derecho, folio, nombre, falta, colonia, r);
+      else r.exito = false;
+      return n;
+    }
+
+    buscar(folio) {
+      let n = this.raiz;
+      const camino = [];
+      while (n !== null) {
+        camino.push(n.folio);
+        if (folio === n.folio) return { nodo: n, camino };
+        n = folio < n.folio ? n.izquierdo : n.derecho;
+      }
+      return { nodo: null, camino };
+    }
+
+    inOrder() {
+      const out = [];
+      (function rec(n) {
+        if (n === null) return;
+        rec(n.izquierdo); out.push(n); rec(n.derecho);
+      })(this.raiz);
+      return out;
+    }
+
+    altura() {
+      const h = n => (n === null ? 0 : 1 + Math.max(h(n.izquierdo), h(n.derecho)));
+      return h(this.raiz);
+    }
+
+    _minimo(n) {
+      let a = n;
+      while (a && a.izquierdo !== null) a = a.izquierdo;
+      return a;
+    }
+
+    liberar(folio) {
+      const info = { encontrado: false, caso: '', sucesor: null };
+      this.raiz = this._eliminar(this.raiz, folio, info);
+      return info;
+    }
+    _eliminar(n, folio, info) {
+      if (n === null) return null;
+      if (folio < n.folio) n.izquierdo = this._eliminar(n.izquierdo, folio, info);
+      else if (folio > n.folio) n.derecho = this._eliminar(n.derecho, folio, info);
+      else {
+        info.encontrado = true;
+        if (n.izquierdo === null) {
+          if (!info.caso) info.caso = n.derecho ? 'un hijo' : 'hoja';
+          return n.derecho;
+        }
+        if (n.derecho === null) {
+          if (!info.caso) info.caso = 'un hijo';
+          return n.izquierdo;
+        }
+        const t = this._minimo(n.derecho);
+        info.caso = 'dos hijos';
+        info.sucesor = t.folio;
+        n.folio = t.folio;
+        n.nombreInfractor = t.nombreInfractor;
+        n.faltaCometida = t.faltaCometida;
+        n.coloniaRemision = t.coloniaRemision;
+        n.cabezaSanciones = t.cabezaSanciones;
+        t.cabezaSanciones = null;
+        n.derecho = this._eliminar(n.derecho, t.folio, info);
+      }
+      return n;
+    }
+  }
+
+  /* ===== 4. Interfaz ===== */
+  const $ = s => document.querySelector(s);
+  const esc = s => String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+  const reduce = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+  const T = new JuzgadoCivicoBST();
+  const ui = { visit: new Set(), mark: null, sel: null, ordMap: new Map() };
+  let seeded = false;
+  let mode = 'registrar';
+  let pendingDelete = null;
+  let animToken = 0;
+  const vals = { folio: '', nombre: '', falta: '', colonia: '', desc: '', hora: '' };
+
+  const FIELDS = {
+    folio:   { label: 'Folio', ph: 'JC-120', mono: true },
+    nombre:  { label: 'Nombre del infractor', ph: 'Ej. Ana López Rivas' },
+    falta:   { label: 'Falta cometida', ph: 'Ej. Ingerir alcohol en vía pública', list: 'faltas' },
+    colonia: { label: 'Colonia de remisión', ph: 'Ej. Centro Histórico' },
+    desc:    { label: 'Sanción o avance', ph: 'Ej. Cumple 12 horas de arresto' },
+    hora:    { label: 'Hora', ph: '16:00 hrs', mono: true }
+  };
+  const MODES = {
+    registrar: { color: '--c-reg', title: 'Registrar infractor remitido', hint: 'El folio ordena el árbol. No se permiten folios repetidos.', fields: ['folio', 'nombre', 'falta', 'colonia'], submit: 'Registrar en el árbol' },
+    buscar:    { color: '--c-bus', title: 'Buscar por folio', hint: 'Se compara el folio con cada nodo y se baja a la izquierda o a la derecha.', fields: ['folio'], submit: 'Buscar' },
+    sancion:   { color: '--c-san', title: 'Agregar sanción o estatus', hint: 'Se agrega al final de la lista enlazada del infractor.', fields: ['folio', 'desc', 'hora'], submit: 'Agregar sanción' },
+    liberar:   { color: '--c-lib', title: 'Liberar o concluir caso', hint: 'Elimina el nodo y su seguimiento. Requiere confirmar.', fields: ['folio'], submit: 'Liberar y eliminar' }
+  };
+
+  function nowHora() {
+    const d = new Date();
+    return String(d.getHours()).padStart(2, '0') + ':' + String(d.getMinutes()).padStart(2, '0') + ' hrs';
+  }
+  const normFolio = s => s.trim().toUpperCase();
+
+  /* --- Bitácora --- */
+  const logs = [];
+  function log(type, text) {
+    const d = new Date();
+    const t = [d.getHours(), d.getMinutes(), d.getSeconds()].map(x => String(x).padStart(2, '0')).join(':');
+    logs.unshift({ type, text, t });
+    if (logs.length > 60) logs.pop();
+    renderLog();
+  }
+  const TAGS = { ok: '[OK]', err: '[!]', add: '[+]', info: '[i]', ord: '[↕]' };
+  function renderLog() {
+    $('#log').innerHTML = logs.map(l =>
+      `<li><span class="tag ${l.type}">${TAGS[l.type]}</span><span class="msg">${esc(l.text)}</span><time>${l.t}</time></li>`
+    ).join('');
+  }
+
+  /* --- Árbol dibujado --- */
+  const NW = 112, NH = 48, GAP = 16, VG = 44, PAD = 14;
+  function renderTree() {
+    const box = $('#treeBox');
+    if (T.raiz === null) {
+      box.innerHTML = '<div class="empty"><b>El árbol está vacío</b>Registra el primer infractor o carga los ejemplos.</div>';
+      return;
+    }
+    const pos = new Map();
+    let idx = 0, maxD = 0;
+    (function go(n, d) {
+      if (n === null) return;
+      go(n.izquierdo, d + 1);
+      pos.set(n.folio, { n, d, i: idx++ });
+      if (d > maxD) maxD = d;
+      go(n.derecho, d + 1);
+    })(T.raiz, 0);
+    const W = PAD * 2 + idx * NW + (idx - 1) * GAP;
+    const H = PAD * 2 + (maxD + 1) * NH + maxD * VG;
+    const X = p => PAD + p.i * (NW + GAP);
+    const Y = p => PAD + p.d * (NH + VG);
+    const on = f => ui.visit.has(f) || (ui.mark && ui.mark.folio === f);
+
+    let edges = '', nodes = '';
+    pos.forEach(p => {
+      [p.n.izquierdo, p.n.derecho].forEach(c => {
+        if (!c) return;
+        const q = pos.get(c.folio);
+        const x1 = X(p) + NW / 2, y1 = Y(p) + NH, x2 = X(q) + NW / 2, y2 = Y(q);
+        const lit = on(p.n.folio) && on(c.folio);
+        edges += `<path class="edge${lit ? ' on' : ''}" d="M${x1} ${y1} C${x1} ${y1 + 24}, ${x2} ${y2 - 24}, ${x2} ${y2}"/>`;
+      });
+    });
+    pos.forEach((p, f) => {
+      const n = p.n;
+      let cls = 'node';
+      if (ui.visit.has(f)) cls += ' visit';
+      if (ui.ordMap.has(f)) cls += ' ord';
+      if (ui.mark && ui.mark.folio === f) cls += ' ' + ui.mark.kind;
+      if (ui.sel === f) cls += ' sel';
+      const x = X(p), y = Y(p);
+      const nombre = n.nombreInfractor.length > 15 ? n.nombreInfractor.slice(0, 14) + '…' : n.nombreInfractor;
+      const ns = n.sanciones().length;
+      nodes += `<g class="${cls}" data-folio="${esc(f)}" tabindex="0" role="button" aria-label="Folio ${esc(f)}, ${esc(n.nombreInfractor)}">
+        <rect x="${x}" y="${y}" width="${NW}" height="${NH}" rx="8"/>
+        <text class="nf" x="${x + NW / 2}" y="${y + 21}" text-anchor="middle">${esc(f)}</text>
+        <text class="nn" x="${x + NW / 2}" y="${y + 37}" text-anchor="middle">${esc(nombre)}</text>
+        ${ns > 0 ? `<g class="badge-san"><circle cx="${x + NW - 2}" cy="${y + 2}" r="10"/><text x="${x + NW - 2}" y="${y + 6}" text-anchor="middle">${ns}</text></g>` : ''}
+        ${ui.ordMap.has(f) ? `<g class="badge-ord"><circle cx="${x + 2}" cy="${y + 2}" r="10"/><text x="${x + 2}" y="${y + 6}" text-anchor="middle">${ui.ordMap.get(f)}</text></g>` : ''}
+      </g>`;
+    });
+    box.innerHTML = `<svg width="${W}" height="${H}" viewBox="0 0 ${W} ${H}" role="group" aria-label="Árbol binario de búsqueda por folio">${edges}${nodes}</svg>`;
+  }
+
+  function renderStats() {
+    $('#stN').textContent = T.inOrder().length;
+    $('#stH').textContent = T.altura();
+    $('#stR').textContent = T.raiz ? T.raiz.folio : '—';
+    $('#tagEx').hidden = !seeded;
+  }
+
+  function renderDet() {
+    const box = $('#detBox');
+    const n = ui.sel ? T.buscar(ui.sel).nodo : null;
+    if (!n) {
+      box.innerHTML = '<div class="empty"><b>Ningún infractor seleccionado</b>Toca un nodo del árbol, una fila del listado o busca un folio.</div>';
+      return;
+    }
+    const s = n.sanciones();
+    const chain = s.length === 0
+      ? '<p style="color:var(--muted)">No hay sanciones registradas aún.</p>'
+      : '<div class="chain">' + s.map((d, i) =>
+          `<div class="link"><time>${esc(d.hora)}</time><span>${esc(d.descripcion)}</span></div><span class="arrow">${i < s.length - 1 ? '→' : '→'}</span>`
+        ).join('') + '<span class="null">NULL</span></div>';
+    box.innerHTML = `
+      <div class="det-top">
+        <span class="sello">${esc(n.folio)}</span>
+        <div class="det-btns">
+          <button type="button" class="mini san" data-go="sancion">Agregar sanción</button>
+          <button type="button" class="mini lib" data-go="liberar">Liberar</button>
+        </div>
+      </div>
+      <dl class="info">
+        <dt>Infractor</dt><dd>${esc(n.nombreInfractor)}</dd>
+        <dt>Falta</dt><dd>${esc(n.faltaCometida)}</dd>
+        <dt>Colonia</dt><dd>${esc(n.coloniaRemision)}</dd>
+        <dt>Hijos</dt><dd>${n.izquierdo ? 'izq. ' + esc(n.izquierdo.folio) : 'sin izq.'} · ${n.derecho ? 'der. ' + esc(n.derecho.folio) : 'sin der.'}</dd>
+      </dl>
+      <p class="sub-h">Lista de sanciones (${s.length})</p>
+      ${chain}`;
+    if (s.length === 0) return;
+  }
+
+  function renderTable() {
+    const list = T.inOrder();
+    const box = $('#tabBox');
+    if (list.length === 0) {
+      box.innerHTML = '<div class="empty"><b>No hay infractores en el Juzgado Cívico</b>El listado aparece aquí en orden de folio.</div>';
+      return;
+    }
+    box.innerHTML = `<table><thead><tr><th>#</th><th>Folio</th><th>Infractor</th><th>Falta</th><th>Colonia</th><th>Sanc.</th></tr></thead><tbody>` +
+      list.map((n, i) => `<tr class="row${ui.ordMap.has(n.folio) ? ' ord' : ''}" data-folio="${esc(n.folio)}">
+        <td class="mono">${i + 1}</td><td class="mono">${esc(n.folio)}</td><td>${esc(n.nombreInfractor)}</td>
+        <td>${esc(n.faltaCometida)}</td><td>${esc(n.coloniaRemision)}</td><td><span class="pill">${n.sanciones().length}</span></td></tr>`).join('') +
+      '</tbody></table>';
+  }
+
+  function renderAll() { renderTree(); renderStats(); renderDet(); renderTable(); }
+
+  /* --- Formulario --- */
+  function renderForm() {
+    const f = $('#frm');
+    const m = MODES[mode];
+    f.style.setProperty('--mode', `var(${m.color})`);
+    f.innerHTML = `<h2>${m.title}</h2><p class="hint">${m.hint}</p>` +
+      m.fields.map(k => {
+        const d = FIELDS[k];
+        return `<div class="field" data-k="${k}"><label for="f-${k}">${d.label}</label>
+          <input id="f-${k}" name="${k}" type="text" autocomplete="off" placeholder="${esc(d.ph)}" value="${esc(vals[k])}"${d.mono ? ' class="mono"' : ''}${d.list ? ` list="${d.list}"` : ''}></div>`;
+      }).join('') +
+      `<datalist id="faltas"><option value="Ingerir alcohol en vía pública"><option value="Alterar el orden en vía pública"><option value="Ruido excesivo en domicilio"><option value="Tirar basura en vía pública"><option value="Grafiti sin autorización"></datalist>` +
+      `<button type="submit" class="submit" id="submitBtn">${m.submit}</button>`;
+    pendingDelete = null;
+  }
+
+  function setMode(m) {
+    mode = m;
+    document.querySelectorAll('.act').forEach(b => b.setAttribute('aria-pressed', b.dataset.mode === m ? 'true' : 'false'));
+    if (m === 'sancion' && !vals.hora) vals.hora = nowHora();
+    renderForm();
+  }
+
+  function flagBad(keys) {
+    keys.forEach(k => { const el = document.querySelector(`.field[data-k="${k}"]`); if (el) el.classList.add('bad'); });
+    const first = document.querySelector(`#f-${keys[0]}`);
+    if (first) first.focus();
+  }
+
+  /* --- Animación de recorridos --- */
+  function resetMarks() {
+    animToken++;
+    ui.visit = new Set(); ui.mark = null; ui.ordMap = new Map();
+  }
+  function walk(seq, kind) {
+    const tok = ++animToken;
+    ui.visit = new Set(); ui.mark = null; ui.ordMap = new Map();
+    let i = 0;
+    function step() {
+      if (tok !== animToken) return;
+      if (i < seq.length) {
+        ui.visit.add(seq[i]); i++;
+        renderTree();
+        if (reduce) step(); else setTimeout(step, 360);
+      } else {
+        const last = seq[seq.length - 1];
+        if (last && kind) ui.mark = { folio: last, kind };
+        renderTree();
+      }
+    }
+    step();
+  }
+  function walkOrder(list) {
+    const tok = ++animToken;
+    ui.visit = new Set(); ui.mark = null; ui.ordMap = new Map();
+    let i = 0;
+    function step() {
+      if (tok !== animToken) return;
+      if (i < list.length) {
+        ui.ordMap.set(list[i].folio, i + 1); i++;
+        renderTree(); renderTable();
+        if (reduce) step(); else setTimeout(step, 320);
+      }
+    }
+    step();
+  }
+
+  function select(folio) {
+    ui.sel = folio;
+    vals.folio = folio;
+    const inp = $('#f-folio');
+    if (inp) inp.value = folio;
+    pendingDelete = null;
+    const b = $('#submitBtn');
+    if (b && mode === 'liberar') { b.textContent = MODES.liberar.submit; b.classList.remove('confirm'); }
+    renderTree(); renderDet();
+  }
+
+  /* --- Acciones --- */
+  function accionRegistrar() {
+    const folio = normFolio(vals.folio), nombre = vals.nombre.trim(), falta = vals.falta.trim(), colonia = vals.colonia.trim();
+    const faltan = [];
+    if (!folio) faltan.push('folio'); if (!nombre) faltan.push('nombre'); if (!falta) faltan.push('falta'); if (!colonia) faltan.push('colonia');
+    if (faltan.length) { log('err', 'Completa todos los campos para registrar al infractor.'); flagBad(faltan); return; }
+    const ok = T.registrar(folio, nombre, falta, colonia);
+    if (!ok) { log('err', `Error: Ya existe un registro con el folio ${folio}.`); flagBad(['folio']); return; }
+    seeded = seeded;
+    log('ok', `Infractor registrado con folio ${folio} con éxito en el árbol.`);
+    vals.folio = vals.nombre = vals.falta = vals.colonia = '';
+    ui.sel = folio;
+    renderAll(); renderForm();
+    walk(T.buscar(folio).camino, 'newn');
+  }
+
+  function accionBuscar() {
+    const folio = normFolio(vals.folio);
+    if (!folio) { log('err', 'Escribe el folio a buscar.'); flagBad(['folio']); return; }
+    const r = T.buscar(folio);
+    if (r.nodo) {
+      ui.sel = folio;
+      log('info', `[ENCONTRADO] ${folio} · ${r.nodo.nombreInfractor} · ${r.nodo.faltaCometida} · ${r.nodo.coloniaRemision}. Recorrido: ${r.camino.join(' → ')} (${r.camino.length} comparaciones).`);
+      renderDet(); renderStats();
+      walk(r.camino, 'found');
+    } else {
+      log('err', `Infractor no encontrado en el árbol.${r.camino.length ? ' Recorrido: ' + r.camino.join(' → ') + '.' : ''}`);
+      if (r.camino.length) walk(r.camino, 'miss'); else resetMarks();
+      renderTree();
+    }
+  }
+
+  function accionSancion() {
+    const folio = normFolio(vals.folio), desc = vals.desc.trim(), hora = vals.hora.trim();
+    const faltan = [];
+    if (!folio) faltan.push('folio'); if (!desc) faltan.push('desc'); if (!hora) faltan.push('hora');
+    if (faltan.length) { log('err', 'Escribe folio, sanción y hora.'); flagBad(faltan); return; }
+    const n = T.buscar(folio).nodo;
+    if (!n) { log('err', 'Infractor no encontrado.'); flagBad(['folio']); return; }
+    n.agregarSancion(desc, hora);
+    log('add', `Sanción/Estatus registrado correctamente para el folio ${folio}.`);
+    vals.desc = ''; vals.hora = nowHora();
+    ui.sel = folio;
+    resetMarks(); ui.mark = { folio, kind: 'found' };
+    renderAll(); renderForm();
+  }
+
+  function accionOrden() {
+    const list = T.inOrder();
+    if (list.length === 0) { log('err', 'No hay infractores en el Juzgado Cívico actualmente.'); return; }
+    log('ord', `Listado in-order: ${list.map(n => n.folio).join(', ')}.`);
+    walkOrder(list);
+    $('#cTab').scrollIntoView({ behavior: reduce ? 'auto' : 'smooth', block: 'nearest' });
+  }
+
+  function accionLiberar() {
+    const folio = normFolio(vals.folio);
+    if (!folio) { log('err', 'Escribe el folio del infractor a liberar.'); flagBad(['folio']); return; }
+    const r = T.buscar(folio);
+    if (!r.nodo) { pendingDelete = null; log('err', `No se encontró el registro con folio: ${folio}`); flagBad(['folio']); return; }
+    const btn = $('#submitBtn');
+    if (pendingDelete !== folio) {
+      pendingDelete = folio;
+      btn.textContent = `Confirmar: liberar ${folio}`;
+      btn.classList.add('confirm');
+      ui.sel = folio; renderDet();
+      walk(r.camino, 'found');
+      return;
+    }
+    const info = T.liberar(folio);
+    pendingDelete = null;
+    const extra = info.caso === 'dos hijos' ? ` Tenía dos hijos: lo reemplazó su sucesor in-order ${info.sucesor}.` : info.caso === 'hoja' ? ' Era una hoja.' : ' Tenía un hijo, que ocupa su lugar.';
+    log('ok', `Infractor con folio ${folio} liberado y eliminado del árbol.${extra}`);
+    vals.folio = '';
+    ui.sel = (ui.sel === folio) ? null : ui.sel;
+    resetMarks();
+    renderAll(); renderForm();
+    walk(r.camino.filter(f => T.buscar(f).nodo), null);
+  }
+
+  /* --- Datos de ejemplo --- */
+  function cargarEjemplos() {
+    if (T.raiz !== null && !seeded) {
+      log('err', 'Hay registros propios en el árbol. Vacíalo primero para cargar los ejemplos.');
+      return;
+    }
+    T.raiz = null;
+    [
+      ['JC-105', 'Marco A. Ruiz', 'Ingerir alcohol en vía pública', 'Centro Histórico'],
+      ['JC-102', 'Laura Pérez', 'Alterar el orden en vía pública', 'Roma Norte'],
+      ['JC-110', 'Jorge Salinas', 'Tirar basura en vía pública', 'Doctores'],
+      ['JC-101', 'Daniela Cruz', 'Grafiti sin autorización', 'Juárez'],
+      ['JC-104', 'Iván Torres', 'Ruido excesivo en domicilio', 'Narvarte'],
+      ['JC-108', 'Sofía Mendoza', 'Ingerir alcohol en vía pública', 'Del Valle'],
+      ['JC-115', 'Raúl Ortega', 'Alterar el orden en vía pública', 'Obrera']
+    ].forEach(a => T.registrar(a[0], a[1], a[2], a[3]));
+    T.buscar('JC-105').nodo.agregarSancion('Remitido a barandilla', '09:40 hrs');
+    T.buscar('JC-105').nodo.agregarSancion('Cumple 12 horas de arresto', '16:00 hrs');
+    T.buscar('JC-102').nodo.agregarSancion('Multa de 20 UMA pagada', '11:25 hrs');
+    seeded = true;
+    ui.sel = 'JC-105';
+    resetMarks();
+    renderAll();
+    log('info', 'Se cargaron 7 registros de ejemplo. Puedes vaciar el árbol cuando quieras.');
+  }
+  let clearArmed = false;
+  function vaciar() {
+    const b = $('#btnClear');
+    if (T.raiz === null) { log('info', 'El árbol ya está vacío.'); return; }
+    if (!clearArmed) {
+      clearArmed = true; b.textContent = 'Confirmar: vaciar todo';
+      setTimeout(() => { clearArmed = false; b.textContent = 'Vaciar árbol'; }, 3500);
+      return;
+    }
+    clearArmed = false; b.textContent = 'Vaciar árbol';
+    T.raiz = null; seeded = false; ui.sel = null; resetMarks();
+    renderAll();
+    log('info', 'Árbol vaciado. No hay infractores en el Juzgado Cívico.');
+  }
+
+  /* --- Eventos --- */
+  document.querySelectorAll('.act').forEach(b => b.addEventListener('click', () => {
+    if (b.dataset.mode === 'orden') { accionOrden(); return; }
+    setMode(b.dataset.mode);
+    const f = $('#f-folio'); if (f && !vals.folio) f.focus();
+  }));
+  $('#btnSeed').addEventListener('click', cargarEjemplos);
+  $('#btnClear').addEventListener('click', vaciar);
+
+  $('#frm').addEventListener('input', e => {
+    const k = e.target.name;
+    if (!k) return;
+    vals[k] = e.target.value;
+    const fld = e.target.closest('.field'); if (fld) fld.classList.remove('bad');
+    if (k === 'folio' && pendingDelete) {
+      pendingDelete = null;
+      const b = $('#submitBtn'); b.textContent = MODES.liberar.submit; b.classList.remove('confirm');
+    }
+  });
+  $('#frm').addEventListener('submit', e => {
+    e.preventDefault();
+    ({ registrar: accionRegistrar, buscar: accionBuscar, sancion: accionSancion, liberar: accionLiberar })[mode]();
+  });
+
+  function onPick(e) {
+    const el = e.target.closest('[data-folio]');
+    if (!el) return;
+    resetMarks();
+    select(el.dataset.folio);
+    renderTable();
+  }
+  $('#treeBox').addEventListener('click', onPick);
+  $('#treeBox').addEventListener('keydown', e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onPick(e); } });
+  $('#tabBox').addEventListener('click', onPick);
+  $('#detBox').addEventListener('click', e => {
+    const g = e.target.closest('[data-go]');
+    if (!g) return;
+    setMode(g.dataset.go);
+    $('#frm').scrollIntoView({ behavior: reduce ? 'auto' : 'smooth', block: 'nearest' });
+  });
+
+  /* --- Arranque: árbol con ejemplos --- */
+  cargarEjemplos();
+  vals.folio = '';
+  renderForm();
+  logs.length = 0;
+  log('info', 'Sistema listo. Árbol cargado con 7 registros de ejemplo.');
+})();
+</script>
+
+</body></html>
